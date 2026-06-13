@@ -1,0 +1,42 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Prepare debug folder",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/c",
+                "if not exist debug mkdir debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Project (g++)",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/c",
+                "setlocal enabledelayedexpansion && set sources=\"${workspaceFolder}\\main.cpp\" && if exist \"${workspaceFolder}\\src\\*.cpp\" (for %%f in (\"${workspaceFolder}\\src\\*.cpp\") do set sources=!sources! \"%%f\") && \"D:\\MinGW\\ucrt64\\bin\\g++.exe\" -std=c++17 -g -I\"${workspaceFolder}\\include\" !sources! -o \"${workspaceFolder}\\debug\\main.exe\""
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "dependsOn": [
+                "Prepare debug folder"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
