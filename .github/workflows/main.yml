@@ -21,27 +21,14 @@ jobs:
       shell: pwsh
 
     - name: Verify Compiler
-      run: |
-        g++ --version
-
-    - name: Debug - List all files
-      run: |
-        # 列出仓库所有文件，方便在 Actions 日志中确认代码和 Makefile 的位置
-        Write-Host "=== Current Directory Structure ==="
-        Get-ChildItem -Recurse -Name
-      shell: pwsh
+      run: g++ --version
 
     - name: Build project directly with g++
       run: |
-        # ==========================================
-        # 重要说明：
-        # 1. -m32 : 强制编译为 32 位 Windows 程序
-        # 2. -I./include : 包含头文件目录
-        # 3. ./src/*.cpp : 编译 src 目录下的所有源码
-        # 4. -o main.exe : 输出的文件名
-        # 如果你的源文件直接在根目录，请将 ./src/*.cpp 改为 ./*.cpp
-        # ==========================================
-        g++ -m32 -O2 -I./include -o main.exe ./src/*.cpp
+        # -m32: 编译为 32 位程序
+        # -I./include: 包含头文件目录
+        # ./main.cpp ./src/*.cpp: 同时编译根目录和 src 目录下的源码
+        g++ -m32 -O2 -I./include -o main.exe ./main.cpp ./src/*.cpp
       shell: pwsh
 
     - name: Check output
