@@ -15,36 +15,38 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup MinGW-w64 (i686) via MSYS2
-      # 使用 PowerShell 调用 MSYS2 来安装 32 位的 GCC 和 Make
       run: |
         C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-i686-gcc mingw-w64-i686-make"
-        
-        # 将 32 位 MinGW 的 bin 目录添加到 GitHub Actions 的系统环境变量中
-        # 这样后续的步骤就能直接找到 g++.exe 和 make.exe
         echo "C:\msys64\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       shell: pwsh
 
     - name: Verify Compiler
       run: |
         g++ --version
-        # 注意：MSYS2 安装的 make 名字为 mingw32-make，我们做个映射
         mingw32-make --version
+
+    - name: List files before build (for debugging)
+      run: |
+        # 列出根目录及子目录的文件，方便确认 Makefile 的位置
+        Get-ChildItem -Recurse -Name
       shell: pwsh
 
     - name: Build project
       run: mingw32-make
-      # 注意：MSYS2 环境下的 make 命令叫 mingw32-make。
-      # 如果你的 Makefile 内部有递归调用 $(MAKE)，建议在环境变量中映射一下
+      # 在项目根目录运行 mingw32-make
       env:
         MAKE: mingw32-make
 
     - name: Check output
       run: |
-        # 这里的 "main.exe" 请替换为你 Makefile 中实际生成的文件名
+        # 检查根目录下是否成功生成了可执行文件
+        # ⚠️ 这里的 "main.exe" 请务必替换为你 Makefile 中实际输出的文件名
         if (Test-Path "main.exe") {
           Write-Host "Build successful! main.exe found."
         } else {
-          Write-Error "Build failed! main.exe not found."
+          Write-Error "Build failed! main.exe not found in root directory."
+          # 如果找不到，再次列出文件，看看 exe 跑到哪里去了
+          Get-ChildItem -Recurse -Name 
           exit 1
         }
       shell: pwsh
@@ -53,4 +55,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: GDScratch-Win32-Build
-        path: main.exe
+        path: main.exe # 如果你的 exe 生成在其他位置（如 debug/main.exe），请修改这里
