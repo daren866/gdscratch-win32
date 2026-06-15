@@ -1,0 +1,54 @@
+name: Build Win32 EXE
+
+# 触发条件：当推送到 main 分支，或者提交 Pull Request 时触发
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest # 使用 Windows 运行环境
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # 拉取你的代码
+
+    - name: Setup MinGW-w64 (i686) for Win32
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        platform: x86 # 指定安装 32 位 (i686) 的 MinGW 编译器
+
+    - name: Verify Compiler
+      run: |
+        g++ --version
+        make --version
+
+    - name: Build project
+      run: make
+      # 注意：这要求你项目根目录下有 Makefile。
+      # 如果你的 Makefile 中硬编码了 x86_64 编译器，你可能需要修改它，
+      # 或者在环境变量中覆盖 CC/CXX，例如：
+      # env:
+      #   CXX: g++
+
+    - name: Check output
+      run: |
+        # 检查是否成功生成了可执行文件
+        # 这里的 "main.exe" 请替换为你 Makefile 中实际生成的文件名
+        if (Test-Path "main.exe") {
+          Write-Host "Build successful! main.exe found."
+          # 验证是否为 32 位程序
+          dumpbin /headers main.exe | Select-String "machine"
+        } else {
+          Write-Error "Build failed! main.exe not found."
+          exit 1
+        }
+      shell: pwsh
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GDScratch-Win32-Build
+        path: main.exe # 同样，替换为你实际生成的 exe 文件名
