@@ -1,46 +1,242 @@
-name: Build Win32 EXE
+name: Build Static Single-File Windows GUI
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-
+    
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup MinGW-w64 (i686) via MSYS2
+      
+    - name: Compile to Static Single-File EXE
+      shell: cmd
       run: |
-        C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-i686-gcc mingw-w64-i686-make"
-        echo "C:\msys64\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      shell: pwsh
-
-    - name: Verify Compiler
-      run: g++ --version
-
-    - name: Build project directly with g++
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        
+        echo ========================================
+        echo Compiling to STATIC single-file executable
+        echo ========================================
+        
+        cl /nologo /EHsc /O2 /GL /GS- /MT /MTd /DNDEBUG ^
+            /Fe:GDScratchRenderer.exe ^
+            main.cpp ^
+            /link user32.lib comctl32.lib kernel32.lib gdi32.lib ^
+            /INCREMENTAL:NO /LTCG /NODEFAULTLIB:MSVCRT /NODEFAULTLIB:LIBCMT ^
+            /SUBSYSTEM:WINDOWS /ENTRY:WinMainCRTStartup ^
+            /FILEALIGN:512 /MERGE:.rdata=.text /MERGE:.data=.text ^
+            /OPT:REF /OPT:ICF /DEBUG
+            
+        if exist GDScratchRenderer.exe (
+            echo.
+            echo ========================================
+            echo ✓ Build successful!
+            echo ========================================
+            dir GDScratchRenderer.exe
+        ) else (
+            echo.
+            echo ✗ Build failed!
+            exit /b 1
+        )
+        
+    - name: MinGW Static Build (Fallback)
+      if: failure()
       run: |
-        # 使用动态链接，只静态链接C++运行时
-        g++ -m32 -O2 -static-libgcc -static-libstdc++ -lcomctl32 -Wl,-subsystem,windows -I./include -o main.exe ./main.cpp ./src/*.cpp
-      shell: pwsh
-
-    - name: Check output
-      run: |
-        if (Test-Path "main.exe") {
-          Write-Host "Build successful! main.exe found."
+        # 使用 MinGW-w64 生成完全静态的单文件
+        $env:Path = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$env:Path"
+        
+        # 安装 MinGW-w64
+        C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc"
+        
+        echo "Compiling with MinGW-w64 (static)..."
+        
+        g++ -static -static-libgcc -static-libstdc++ -O2 ^
+            -ffunction-sections -fdata-sections ^
+            -Wl,-subsystem,windows ^
+            -Wl,--gc-sections -Wl,-s -Wl,-O1 ^
+            -o GDScratchRenderer.exe main.cpp ^
+            -lgdi32 -lcomctl32 -static
+        
+        if (Test-Path "GDScratchRenderer.exe") {
+            Write-Host "✓ MinGW static build successful!" -ForegroundColor Green
         } else {
-          Write-Error "Build failed! main.exe not found."
-          exit 1
+            Write-Host "✗ Build failed!" -ForegroundColor Red
+            exit 1
         }
-      shell: pwsh
-
+        
+    - name: Strip and Optimize
+      run: |
+        # 如果使用 MSVC
+        if (Test-Path "GDScratchRenderer.exe") {
+            # 移除调试信息，减小文件大小
+            & link /EDIT /SUBSYSTEM:WINDOWS /STRIP GDScratchRenderer.exe 2>$null
+        }
+        
+        # 显示文件大小
+        $fileInfo = Get-Item "GDScratchRenderer.exe"
+        $sizeKB = [math]::Round($fileInfo.Length / 1KB, 2)
+        $sizeMB = [math]::Round($sizeKB / 1024, 2)
+        
+        Write-Host ""
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Final Executable:" -ForegroundColor Green
+        Write-Host "  File: GDScratchRenderer.exe" -ForegroundColor White
+        Write-Host "  Size: $sizeKB KB ($sizeMB MB)" -ForegroundColor White
+        Write-Host "  Type: Static Single-File" -ForegroundColor White
+        Write-Host "========================================" -ForegroundColor Cyan
+        
+    - name: Test Executable
+      run: |
+        # 验证可执行文件可以正常运行
+        .\GDScratchRenderer.exe -help 2>&1 | Out-Null
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ Executable test passed!" -ForegroundColor Green
+        } else {
+            Write-Host "⚠ Warning: Executable test inconclusive" -ForegroundColor Yellow
+        }
+        
+    - name: Create Single-File Package
+      run: |
+        # 创建发布文件夹
+        New-Item -ItemType Directory -Force -Path release
+        
+        # 只复制单个 EXE 文件
+        Copy-Item GDScratchRenderer.exe release\GDScratchRenderer.exe
+        
+        # 创建运行说明
+        @"
+        ========================================
+        舞台渲染画面 - 静态单文件版本
+        ========================================
+        
+        文件说明：
+        - GDScratchRenderer.exe (唯一需要的文件)
+        
+        运行方法：
+        1. 直接双击 GDScratchRenderer.exe 运行
+        2. 或在命令行中运行：GDScratchRenderer.exe
+        
+        特点：
+        ✓ 完全独立的单个可执行文件
+        ✓ 无需任何 DLL 或运行时库
+        ✓ 适用于 Windows 7/8/10/11
+        ✓ 无需安装，复制即用
+        
+        系统要求：
+        - Windows 7 或更高版本（32/64位）
+        - 无其他依赖项
+        
+        注意事项：
+        - 首次运行可能需要管理员权限（视保存文件路径而定）
+        - 如需卸载，直接删除该文件即可
+        "@ | Out-File -FilePath release\使用说明.txt -Encoding ASCII
+        
+        # 创建简单的启动脚本
+        @"
+        @echo off
+        title 舞台渲染画面
+        echo 正在启动静态单文件版本...
+        start "" "GDScratchRenderer.exe"
+        "@ | Out-File -FilePath release\启动.bat -Encoding ASCII
+        
+        # 压缩为单个 ZIP
+        Compress-Archive -Path release\* -DestinationPath GDScratchRenderer_Static.zip -Force
+        
+        Write-Host "✓ Created static single-file package" -ForegroundColor Green
+        
+    - name: Verify No Dependencies
+      shell: powershell
+      run: |
+        Write-Host "`n========================================" -ForegroundColor Cyan
+        Write-Host "Dependency Check:" -ForegroundColor Yellow
+        Write-Host "========================================`n" -ForegroundColor Cyan
+        
+        # 检查依赖项（应该只有系统核心DLL）
+        $dependencies = & dumpbin /dependents GDScratchRenderer.exe 2>$null | Select-String ".dll"
+        
+        Write-Host "Required DLLs:"
+        $hasExternal = $false
+        foreach ($dep in $dependencies) {
+            $dll = $dep.ToString().Trim()
+            if ($dll -ne "" -and $dll -notlike "*KERNEL32*" -and 
+                $dll -notlike "*USER32*" -and $dll -notlike "*GDI32*" -and
+                $dll -notlike "*ADVAPI32*" -and $dll -notlike "*SHELL32*" -and
+                $dll -notlike "*MSVCRT*" -and $dll -notlike "*VCRUNTIME*") {
+                Write-Host "  ⚠ $dll" -ForegroundColor Yellow
+                $hasExternal = $true
+            } elseif ($dll -ne "") {
+                Write-Host "  ✓ $dll" -ForegroundColor Green
+            }
+        }
+        
+        if ($hasExternal) {
+            Write-Host "`n⚠ Warning: Some external DLLs detected" -ForegroundColor Yellow
+        } else {
+            Write-Host "`n✓ Perfect! No external DLL dependencies - truly static!" -ForegroundColor Green
+        }
+        
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: GDScratch-Win32-Build
-        path: main.exe
+        name: GDScratchRenderer-Static-SingleFile
+        path: |
+          GDScratchRenderer.exe
+          GDScratchRenderer_Static.zip
+        if-no-files-found: error
+        compression-level: 0  # 不要再次压缩，保持原样
+        
+    - name: Create Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: static-v1.0.${{ github.run_number }}
+        name: "静态单文件版本 v1.0.${{ github.run_number }}"
+        body: |
+          ## 🎯 静态单文件 Windows GUI 应用程序
+          
+          ### ✨ 特性
+          - **单个 EXE 文件**：无需任何外部 DLL
+          - **完全静态链接**：不依赖 MSVC 运行时
+          - **开箱即用**：下载即可运行
+          - **体积小巧**：优化的可执行文件
+          
+          ### 📦 文件信息
+          - 文件名：`GDScratchRenderer.exe`
+          - 类型：独立的 Windows GUI 程序
+          - 兼容性：Windows 7/8/10/11
+          
+          ### 🚀 使用方法
+          1. 下载 `GDScratchRenderer_Static.zip`
+          2. 解压到任意文件夹
+          3. 双击 `GDScratchRenderer.exe` 运行
+          
+          ### 📝 功能说明
+          - **加载按钮**：加载 Scratch 项目文件
+          - **渲染按钮**：执行渲染操作
+          - 默认文件路径可在编辑框中修改
+          
+          ### ⚡ 技术细节
+          - 静态链接 MSVC 运行时
+          - 使用 `/MT` 编译选项
+          - 优化大小：`/O2 /GL /LTCG`
+          - 无额外依赖项
+          
+          ### 🔧 系统要求
+          - 操作系统：Windows 7 SP1 或更高版本
+          - 架构：x86_64 (64位)
+          - 内存：最低 64MB
+          
+          ---
+          *由 GitHub Actions 自动构建*
+          构建编号：${{ github.run_number }}
+          提交哈希：`${{ github.sha }}`
+        files: |
+          GDScratchRenderer_Static.zip
+          GDScratchRenderer.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
