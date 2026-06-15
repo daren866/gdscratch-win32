@@ -26,9 +26,9 @@ jobs:
     - name: Build project directly with g++
       run: |
         # -m32: 编译为 32 位程序
+        # -static -static-libgcc -static-libstdc++: 静态编译，避免运行时缺少 dll
         # -I./include: 包含头文件目录
-        # ./main.cpp ./src/*.cpp: 同时编译根目录和 src 目录下的源码
-        g++ -m32 -O2 -I./include -o main.exe ./main.cpp ./src/*.cpp
+        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -I./include -o main.exe ./main.cpp ./src/*.cpp
       shell: pwsh
 
     - name: Check output
