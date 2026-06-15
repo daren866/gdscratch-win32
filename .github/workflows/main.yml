@@ -1,4 +1,4 @@
-name: Build Static EXE
+name: Build Static EXE with MinGW
 
 on: [push, workflow_dispatch]
 
@@ -9,29 +9,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Visual Studio environment
-      shell: cmd
+    - name: Install MinGW
       run: |
-        :: 查找 Visual Studio 的安装路径
-        if exist "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
-            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        ) else if exist "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat" (
-            call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat"
-        ) else if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" (
-            call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-        ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
-            call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        ) else (
-            echo Visual Studio not found!
-            exit /b 1
-        )
-        cl
+        choco install mingw -y
+        echo "C:\ProgramData\chocolatey\lib\mingw\tools\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         
     - name: Compile
-      shell: cmd
       run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cl /nologo /O2 /MT /Fe:GDScratchRenderer.exe main.cpp /link user32.lib comctl32.lib kernel32.lib gdi32.lib /SUBSYSTEM:WINDOWS
+        g++ --version
+        g++ -static -static-libgcc -static-libstdc++ -O2 -o GDScratchRenderer.exe main.cpp -lgdi32 -lcomctl32 -Wl,-subsystem,windows
         
     - name: Upload
       uses: actions/upload-artifact@v4
