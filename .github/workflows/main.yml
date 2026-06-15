@@ -25,8 +25,8 @@ jobs:
 
     - name: Build project directly with g++
       run: |
-        # 使用 -mwindows 参数，它会隐式链接 comctl32 和 gdi32 等库
-        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -I./include -o main.exe ./main.cpp ./src/*.cpp
+        # 方案一：使用 -Wl,-subsystem,windows
+        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -Wl,-subsystem,windows -lcomctl32 -I./include -o main.exe ./main.cpp ./src/*.cpp
       shell: pwsh
 
     - name: Check output
