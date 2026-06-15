@@ -1,6 +1,5 @@
 name: Build Win32 EXE
 
-# 触发条件：当推送到 main 分支，或者提交 Pull Request 时触发
 on:
   push:
     branches: [ "main" ]
@@ -9,38 +8,41 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest # 使用 Windows 运行环境
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4 # 拉取你的代码
+      uses: actions/checkout@v4
 
-    - name: Setup MinGW-w64 (i686) for Win32
-      uses: egor-tensin/setup-mingw@v2
-      with:
-        platform: x86 # 指定安装 32 位 (i686) 的 MinGW 编译器
+    - name: Setup MinGW-w64 (i686) via MSYS2
+      # 使用 PowerShell 调用 MSYS2 来安装 32 位的 GCC 和 Make
+      run: |
+        C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-i686-gcc mingw-w64-i686-make"
+        
+        # 将 32 位 MinGW 的 bin 目录添加到 GitHub Actions 的系统环境变量中
+        # 这样后续的步骤就能直接找到 g++.exe 和 make.exe
+        echo "C:\msys64\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
 
     - name: Verify Compiler
       run: |
         g++ --version
-        make --version
+        # 注意：MSYS2 安装的 make 名字为 mingw32-make，我们做个映射
+        mingw32-make --version
+      shell: pwsh
 
     - name: Build project
-      run: make
-      # 注意：这要求你项目根目录下有 Makefile。
-      # 如果你的 Makefile 中硬编码了 x86_64 编译器，你可能需要修改它，
-      # 或者在环境变量中覆盖 CC/CXX，例如：
-      # env:
-      #   CXX: g++
+      run: mingw32-make
+      # 注意：MSYS2 环境下的 make 命令叫 mingw32-make。
+      # 如果你的 Makefile 内部有递归调用 $(MAKE)，建议在环境变量中映射一下
+      env:
+        MAKE: mingw32-make
 
     - name: Check output
       run: |
-        # 检查是否成功生成了可执行文件
         # 这里的 "main.exe" 请替换为你 Makefile 中实际生成的文件名
         if (Test-Path "main.exe") {
           Write-Host "Build successful! main.exe found."
-          # 验证是否为 32 位程序
-          dumpbin /headers main.exe | Select-String "machine"
         } else {
           Write-Error "Build failed! main.exe not found."
           exit 1
@@ -51,4 +53,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: GDScratch-Win32-Build
-        path: main.exe # 同样，替换为你实际生成的 exe 文件名
+        path: main.exe
