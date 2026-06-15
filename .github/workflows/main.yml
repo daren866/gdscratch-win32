@@ -16,13 +16,11 @@ jobs:
         update: true
         install: mingw-w64-x86_64-gcc
         
-    - name: Compile with UTF-8 support
+    - name: Compile with GBK encoding
       shell: msys2 {0}
       run: |
-        # 添加 UTF-8 编译选项
         g++ -static -static-libgcc -static-libstdc++ -O2 \
-            -fexec-charset=GBK \
-            -finput-charset=UTF-8 \
+            -fexec-charset=GBK -finput-charset=UTF-8 \
             -o GDScratchRenderer.exe main.cpp \
             -lgdi32 -lcomctl32
         
