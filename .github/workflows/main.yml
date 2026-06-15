@@ -25,7 +25,7 @@ jobs:
 
     - name: Build project directly with g++
       run: |
-        # -lcomctl32: 链接公共控件库，解决 InitCommonControlsEx 错误
+        # 方案一：在 -mwindows 后面加上 -lcomctl32
         g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -lcomctl32 -I./include -o main.exe ./main.cpp ./src/*.cpp
       shell: pwsh
 
