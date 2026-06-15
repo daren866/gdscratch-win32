@@ -1,4 +1,4 @@
-name: Build Static EXE with MinGW
+name: Build Static EXE
 
 on: [push, workflow_dispatch]
 
@@ -10,14 +10,17 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Install MinGW
+      shell: cmd
       run: |
         choco install mingw -y
-        echo "C:\ProgramData\chocolatey\lib\mingw\tools\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        set PATH=C:\ProgramData\chocolatey\lib\mingw\tools\x86_64-13.2.0-win32-seh-msvcrt-rt_v11-rev1\mingw64\bin;%PATH%
+        g++ --version
         
     - name: Compile
+      shell: cmd
       run: |
-        g++ --version
-        g++ -static -static-libgcc -static-libstdc++ -O2 -o GDScratchRenderer.exe main.cpp -lgdi32 -lcomctl32 -Wl,-subsystem,windows
+        set PATH=C:\ProgramData\chocolatey\lib\mingw\tools\x86_64-13.2.0-win32-seh-msvcrt-rt_v11-rev1\mingw64\bin;%PATH%
+        g++ -static -static-libgcc -static-libstdc++ -O2 -o GDScratchRenderer.exe main.cpp -lgdi32 -lcomctl32 -Wl,--subsystem,windows
         
     - name: Upload
       uses: actions/upload-artifact@v4
