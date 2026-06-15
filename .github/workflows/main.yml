@@ -23,30 +23,33 @@ jobs:
     - name: Verify Compiler
       run: |
         g++ --version
-        mingw32-make --version
 
-    - name: List files before build (for debugging)
+    - name: Debug - List all files
       run: |
-        # 列出根目录及子目录的文件，方便确认 Makefile 的位置
+        # 列出仓库所有文件，方便在 Actions 日志中确认代码和 Makefile 的位置
+        Write-Host "=== Current Directory Structure ==="
         Get-ChildItem -Recurse -Name
       shell: pwsh
 
-    - name: Build project
-      run: mingw32-make
-      # 在项目根目录运行 mingw32-make
-      env:
-        MAKE: mingw32-make
+    - name: Build project directly with g++
+      run: |
+        # ==========================================
+        # 重要说明：
+        # 1. -m32 : 强制编译为 32 位 Windows 程序
+        # 2. -I./include : 包含头文件目录
+        # 3. ./src/*.cpp : 编译 src 目录下的所有源码
+        # 4. -o main.exe : 输出的文件名
+        # 如果你的源文件直接在根目录，请将 ./src/*.cpp 改为 ./*.cpp
+        # ==========================================
+        g++ -m32 -O2 -I./include -o main.exe ./src/*.cpp
+      shell: pwsh
 
     - name: Check output
       run: |
-        # 检查根目录下是否成功生成了可执行文件
-        # ⚠️ 这里的 "main.exe" 请务必替换为你 Makefile 中实际输出的文件名
         if (Test-Path "main.exe") {
           Write-Host "Build successful! main.exe found."
         } else {
-          Write-Error "Build failed! main.exe not found in root directory."
-          # 如果找不到，再次列出文件，看看 exe 跑到哪里去了
-          Get-ChildItem -Recurse -Name 
+          Write-Error "Build failed! main.exe not found."
           exit 1
         }
       shell: pwsh
@@ -55,4 +58,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: GDScratch-Win32-Build
-        path: main.exe # 如果你的 exe 生成在其他位置（如 debug/main.exe），请修改这里
+        path: main.exe
