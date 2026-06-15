@@ -1,66 +1,40 @@
-name: Build Static Single-File Windows GUI
+name: Build Static EXE
 
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: windows-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Compile with MSVC (Static)
+    - uses: actions/checkout@v4
+    
+    - name: Setup Visual Studio environment
+      shell: cmd
+      run: |
+        :: 查找 Visual Studio 的安装路径
+        if exist "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
+            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        ) else if exist "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat" (
+            call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat"
+        ) else if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" (
+            call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+        ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
+            call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        ) else (
+            echo Visual Studio not found!
+            exit /b 1
+        )
+        cl
+        
+    - name: Compile
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cl /nologo /EHsc /O2 /MT /DNDEBUG /Fe:GDScratchRenderer.exe main.cpp /link user32.lib comctl32.lib kernel32.lib gdi32.lib /INCREMENTAL:NO /SUBSYSTEM:WINDOWS
+        cl /nologo /O2 /MT /Fe:GDScratchRenderer.exe main.cpp /link user32.lib comctl32.lib kernel32.lib gdi32.lib /SUBSYSTEM:WINDOWS
         
-    - name: Show build result
-      shell: powershell
-      run: |
-        if (Test-Path "GDScratchRenderer.exe") {
-            $fileInfo = Get-Item "GDScratchRenderer.exe"
-            $sizeKB = [math]::Round($fileInfo.Length / 1KB, 2)
-            Write-Host "Build successful! File size: $sizeKB KB" -ForegroundColor Green
-        } else {
-            Write-Host "Build failed!" -ForegroundColor Red
-            exit 1
-        }
-        
-    - name: Create package
-      shell: powershell
-      run: |
-        New-Item -ItemType Directory -Force -Path release
-        Copy-Item GDScratchRenderer.exe release\GDScratchRenderer.exe
-        
-        @"
-        舞台渲染画面 - 静态单文件版本
-        
-        运行方法：
-        直接双击 GDScratchRenderer.exe 即可运行
-        
-        特点：
-        - 完全独立的单个可执行文件
-        - 无需任何外部 DLL
-        - 无需安装，复制即用
-        
-        功能：
-        - 加载：选择 Scratch 项目文件
-        - 渲染：执行渲染操作
-        "@ | Out-File -FilePath release\README.txt -Encoding ASCII
-        
-        Compress-Archive -Path release\* -DestinationPath GDScratchRenderer_Static.zip -Force
-        Write-Host "Package created successfully!" -ForegroundColor Green
-        
-    - name: Upload Artifact
+    - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: GDScratchRenderer-Static
-        path: |
-          GDScratchRenderer.exe
-          GDScratchRenderer_Static.zip
-        if-no-files-found: error
+        name: GDScratchRenderer
+        path: GDScratchRenderer.exe
