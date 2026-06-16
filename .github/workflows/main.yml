@@ -25,8 +25,8 @@ jobs:
 
     - name: Build project directly with g++
       run: |
-        # 方案一：移除 -lcomctl32，只保留 -mwindows
-        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -lcomdlg32 -I./include -o main.exe ./main.cpp ./src/*.cpp
+        # 注意：-lcomctl32 和 -lcomdlg32 必须放在源文件之后
+        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -I./include ./main.cpp ./src/*.cpp -o main.exe -lcomctl32 -lcomdlg32
       shell: pwsh
 
     - name: Check output
