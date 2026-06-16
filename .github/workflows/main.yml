@@ -25,8 +25,8 @@ jobs:
 
     - name: Build project directly with g++
       run: |
-        # 添加 -lcomdlg32 参数来链接文件对话框库
-        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -lcomctl32 -lcomdlg32 -I./include -o main.exe ./main.cpp ./src/*.cpp
+        # 方案一：移除 -lcomctl32，只保留 -mwindows
+        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -lcomdlg32 -I./include -o main.exe ./main.cpp ./src/*.cpp
       shell: pwsh
 
     - name: Check output
