@@ -31,10 +31,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 WS_EX_CLIENTEDGE,
                 "EDIT",
                 "C:\\xxx\\xxx.sb3",
-                WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+                WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_READONLY,  // 添加只读属性
                 600, 50, 250, 25,
                 hWnd,
                 (HMENU)2,
+                ((LPCREATESTRUCT)lParam)->hInstance,
+                NULL
+            );
+
+            // 创建文件选择按钮
+            hLoadButton = CreateWindowExA(
+                0,
+                "BUTTON",
+                "选择文件",
+                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                600, 100, 120, 30,
+                hWnd,
+                (HMENU)4,
                 ((LPCREATESTRUCT)lParam)->hInstance,
                 NULL
             );
@@ -45,22 +58,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 "BUTTON",
                 "渲染",
                 WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                600, 100, 120, 30,
-                hWnd,
-                (HMENU)3,
-                ((LPCREATESTRUCT)lParam)->hInstance,
-                NULL
-            );
-
-            // 创建加载按钮
-            hLoadButton = CreateWindowExA(
-                0,
-                "BUTTON",
-                "加载",
-                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                 740, 100, 120, 30,
                 hWnd,
-                (HMENU)4,
+                (HMENU)3,
                 ((LPCREATESTRUCT)lParam)->hInstance,
                 NULL
             );
@@ -71,8 +71,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 case 3:  // 渲染按钮
                     MessageBoxA(hWnd, "渲染功能", "提示", MB_OK);
                     break;
-                case 4:  // 加载按钮
-                    MessageBoxA(hWnd, "加载功能", "提示", MB_OK);
+                case 4:  // 选择文件按钮
+                    // 显示文件选择对话框
+                    OPENFILENAMEA ofn;
+                    char szFileName[MAX_PATH] = "";
+                    char szFilter[] = "Scratch 文件 (*.sb3)\0*.sb3\0所有文件 (*.*)\0*.*\0";
+                    
+                    ZeroMemory(&ofn, sizeof(ofn));
+                    ofn.lStructSize = sizeof(ofn);
+                    ofn.hwndOwner = hWnd;
+                    ofn.lpstrFilter = szFilter;
+                    ofn.lpstrFile = szFileName;
+                    ofn.nMaxFile = MAX_PATH;
+                    ofn.lpstrTitle = "选择 Scratch 文件";
+                    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+                    
+                    if (GetOpenFileNameA(&ofn)) {
+                        // 更新文件路径到编辑框
+                        SetWindowTextA(hFileEdit, szFileName);
+                    }
                     break;
             }
             break;
