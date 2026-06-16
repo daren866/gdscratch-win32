@@ -1,31 +1,46 @@
-name: Build Static EXE
+name: Build Win32 EXE
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: mingw-w64-x86_64-gcc
-        
-    - name: Compile with GBK encoding
-      shell: msys2 {0}
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MinGW-w64 (i686) via MSYS2
       run: |
-        g++ -static -static-libgcc -static-libstdc++ -O2 \
-            -fexec-charset=GBK -finput-charset=UTF-8 \
-            -o GDScratchRenderer.exe main.cpp \
-            -lgdi32 -lcomctl32
-        
-    - name: Upload
+        C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-i686-gcc mingw-w64-i686-make"
+        echo "C:\msys64\mingw32\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Verify Compiler
+      run: g++ --version
+
+    - name: Build project directly with g++
+      run: |
+        # 添加 -lcomdlg32 参数来链接文件对话框库
+        g++ -m32 -O2 -static -static-libgcc -static-libstdc++ -mwindows -lcomctl32 -lcomdlg32 -I./include -o main.exe ./main.cpp ./src/*.cpp
+      shell: pwsh
+
+    - name: Check output
+      run: |
+        if (Test-Path "main.exe") {
+          Write-Host "Build successful! main.exe found."
+        } else {
+          Write-Error "Build failed! main.exe not found."
+          exit 1
+        }
+      shell: pwsh
+
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: GDScratchRenderer
-        path: GDScratchRenderer.exe
+        name: GDScratch-Win32-Build
+        path: main.exe
